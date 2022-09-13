@@ -233,11 +233,11 @@ impl Connection {
         Ok(SendStream::new(send, reg))
     }
 
-    pub async fn get_bi_stream(&self) -> Result<BiStream> {
+    pub async fn get_bi_stream(&self) -> Result<(SendStream, RecvStream)> {
         let (send, recv) = self.controller.open_bi().await?;
         let reg = (*self.stream_reg).clone(); // clone inner, not itself
 
-        Ok(BiStream::new(
+        Ok((
             SendStream::new(send, reg.clone()),
             RecvStream::new(recv, reg),
         ))
