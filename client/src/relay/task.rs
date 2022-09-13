@@ -20,7 +20,7 @@ impl Connection {
                 },
                 async {
                     let ret = TuicCommand::read_from(&mut recv_stream).await;
-                    log::debug!("[finp] [relay] [handle_connect] cmd write to send stream done.");
+                    log::debug!("[finp] [relay] [handle_connect] read command from recv stream done.");
                     ret
                 }
             };
