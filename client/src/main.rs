@@ -1,5 +1,8 @@
 use crate::config::{Config, ConfigError};
-use std::{env, process};
+use opentelemetry::runtime::Tokio;
+use std::{env, error::Error, process};
+use tracing_log::env_logger::BuilderExt;
+use tracing_subscriber::{prelude::*, Registry};
 
 mod certificate;
 mod config;
@@ -7,27 +10,30 @@ mod relay;
 mod socks5;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn Error>> {
     let args = env::args_os();
 
-    let config = match Config::parse(args) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            match err {
-                ConfigError::Help(help) => println!("{help}"),
-                ConfigError::Version(version) => println!("{version}"),
-                err => eprintln!("{err}"),
-            }
-            return;
-        }
-    };
+    let config = Config::parse(args).map_err(|err| {
+        match &err {
+            ConfigError::Help(help) => println!("{help}"),
+            ConfigError::Version(version) => println!("{version}"),
+            err => eprintln!("{err}"),
+        };
+        err
+    })?;
 
     env_logger::builder()
         .filter_level(config.log_level)
         .format_level(true)
-        .format_target(false)
         .format_module_path(false)
+        .emit_traces()
         .init();
+
+    let tracer = opentelemetry_jaeger::new_pipeline().install_batch(Tokio)?;
+    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+    let subscriber = Registry::default().with(telemetry);
+
+    tracing::subscriber::set_global_default(subscriber)?;
 
     let (relay, req_tx) = relay::init(
         config.client_config,
@@ -41,13 +47,7 @@ async fn main() {
     )
     .await;
 
-    let socks5 = match socks5::init(config.local_addr, config.socks5_auth, req_tx).await {
-        Ok(socks5) => socks5,
-        Err(err) => {
-            eprintln!("{err}");
-            return;
-        }
-    };
+    let socks5 = socks5::init(config.local_addr, config.socks5_auth, req_tx).await?;
 
     tokio::select! {
         res = relay => res,
