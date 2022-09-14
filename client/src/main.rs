@@ -29,7 +29,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .emit_traces()
         .init();
 
-    let tracer = opentelemetry_jaeger::new_pipeline().install_batch(Tokio)?;
+    let tracer = opentelemetry_jaeger::new_pipeline()
+        .with_auto_split_batch(true)
+        .install_batch(Tokio)?;
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     let subscriber = Registry::default().with(telemetry);
 
