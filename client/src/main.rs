@@ -1,5 +1,9 @@
 use crate::config::{Config, ConfigError};
-use opentelemetry::runtime::Tokio;
+use opentelemetry::{
+    runtime::Tokio,
+    sdk::{trace, Resource},
+    KeyValue,
+};
 use std::{env, error::Error, process};
 use tracing_log::env_logger::BuilderExt;
 use tracing_subscriber::{prelude::*, Registry};
@@ -31,6 +35,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let tracer = opentelemetry_jaeger::new_pipeline()
         .with_auto_split_batch(true)
+        .with_service_name("tuic-client-finp-ver")
         .install_batch(Tokio)?;
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     let subscriber = Registry::default().with(telemetry);
