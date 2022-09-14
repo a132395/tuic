@@ -2,6 +2,7 @@ use super::{stream::BiStream, Address, Connection, UdpRelayMode};
 use bytes::{Bytes, BytesMut};
 use std::io::Result;
 use tokio::{io::AsyncWriteExt, sync::oneshot::Sender as OneshotSender};
+use tracing::{debug, trace_span, warn, Instrument};
 use tuic_protocol::{Address as TuicAddress, Command as TuicCommand};
 
 impl Connection {
@@ -10,17 +11,17 @@ impl Connection {
             let cmd = TuicCommand::new_connect(TuicAddress::from(addr));
 
             let (mut send_stream, mut recv_stream) = conn.get_bi_stream().await?;
-            log::debug!("[finp] [relay] [handle_connect] get_bi_stream done.");
+            debug!(msg = "get_bi_stream done");
 
             let join_ret = tokio::try_join! {
                 async {
                     let ret = cmd.write_to(&mut send_stream).await;
-                    log::debug!("[finp] [relay] [handle_connect] cmd write to send stream done.");
+                    debug!(msg = "write to stream done");
                     ret
                 },
                 async {
                     let ret = TuicCommand::read_from(&mut recv_stream).await;
-                    log::debug!("[finp] [relay] [handle_connect] read command from recv stream done.");
+                    debug!(msg = "read from recv stream done");
                     ret
                 }
             };
@@ -41,15 +42,15 @@ impl Connection {
             }
         }
 
-        let display_addr = format!("{addr}");
+        let span = trace_span!("connection process", %addr);
 
-        match negotiate_connect(self, addr).await {
+        match negotiate_connect(self, addr).instrument(span).await {
             Ok(Some(stream)) => {
-                log::debug!("[relay] [task] [connect] [{display_addr}] [success]");
+                debug!(msg = "negotiate success");
                 let _ = tx.send(stream);
             }
-            Ok(None) => log::debug!("[relay] [task] [connect] [{display_addr}] [fail]"),
-            Err(err) => log::warn!("[relay] [task] [connect] [{display_addr}] {err}"),
+            Ok(None) => warn!(msg = "fail"),
+            Err(err) => warn!(msg = "error occur", ?err),
         }
     }
 
