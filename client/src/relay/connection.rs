@@ -1,7 +1,7 @@
 use super::{
     incoming::{self, Sender as IncomingSender},
     request::Wait as WaitRequest,
-    stream::{BiStream, IncomingUniStreams, RecvStream, Register as StreamRegister, SendStream},
+    stream::{IncomingUniStreams, RecvStream, Register as StreamRegister, SendStream},
     Address, ServerAddr, UdpRelayMode,
 };
 use bytes::Bytes;
