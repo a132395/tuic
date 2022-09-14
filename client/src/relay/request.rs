@@ -50,9 +50,14 @@ async fn process_request(
 ) {
     log::info!("[relay] [task] {req}");
 
+    let lock_span = tracing::trace_span!("acquire connection lock", %req);
     // try to get the current connection
-    if let Ok(lock) = time::timeout(Duration::from_millis(timeout), conn.lock()).await {
+    if let Ok(lock) = time::timeout(Duration::from_millis(timeout), conn.lock())
+        .instrument(lock_span)
+        .await
+    {
         let conn = lock.as_ref().unwrap().clone(); // safety: there must be a connection if the lock is aquirable
+        tracing::debug!("connection lock acquired");
         drop(lock);
 
         match req {
