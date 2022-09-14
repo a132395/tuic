@@ -19,6 +19,7 @@ use tokio::{
     },
     time,
 };
+use tracing::Instrument;
 
 pub fn listen_requests(
     conn: Arc<AsyncMutex<Option<Connection>>>,
@@ -29,7 +30,12 @@ pub fn listen_requests(
 
     let listen = async move {
         while let Some(req) = req_rx.recv().await {
-            tokio::spawn(process_request(conn.clone(), req, timeout, reg.clone()));
+            // trace every request handling procedure
+            let span = tracing::trace_span!("relay task", %req);
+            tokio::spawn(
+                process_request(conn.clone(), req, timeout, reg.clone())
+                    .instrument(span.or_current()),
+            );
         }
     };
 
