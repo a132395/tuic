@@ -10,20 +10,15 @@ impl Connection {
         async fn negotiate_connect(conn: Connection, addr: Address) -> Result<Option<BiStream>> {
             let cmd = TuicCommand::new_connect(TuicAddress::from(addr));
 
-            let (mut send_stream, mut recv_stream) = conn.get_bi_stream().await?;
+            let (mut send_stream, mut recv_stream) = conn
+                .get_bi_stream()
+                .instrument(trace_span!("get bi stream"))
+                .await?;
             debug!("get_bi_stream done");
 
             let join_ret = tokio::try_join! {
-                async {
-                    let ret = cmd.write_to(&mut send_stream).await;
-                    debug!("write to stream done");
-                    ret
-                },
-                async {
-                    let ret = TuicCommand::read_from(&mut recv_stream).await;
-                    debug!("read from recv stream done");
-                    ret
-                }
+                cmd.write_to(&mut send_stream),
+                TuicCommand::read_from(&mut recv_stream)
             };
 
             let resp = match join_ret {
