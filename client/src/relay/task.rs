@@ -10,6 +10,10 @@ impl Connection {
         async fn negotiate_connect(conn: Connection, addr: Address) -> Result<Option<BiStream>> {
             let cmd = TuicCommand::new_connect(TuicAddress::from(addr));
 
+            debug!(
+                stream_count = conn.stream_register().count(),
+                "before get bi stream"
+            );
             let (mut send_stream, mut recv_stream) = conn
                 .get_bi_stream()
                 .instrument(trace_span!("get bi stream"))

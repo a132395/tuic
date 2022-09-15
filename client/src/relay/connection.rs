@@ -256,6 +256,10 @@ impl Connection {
         self.udp_sessions.deref()
     }
 
+    pub fn stream_register(&self) -> &StreamRegister {
+        &self.stream_reg
+    }
+
     pub fn udp_relay_mode(&self) -> UdpRelayMode<(), ()> {
         self.udp_relay_mode
     }
