@@ -59,6 +59,9 @@ impl Connection {
                 let is_closed = IsClosed::new();
                 let is_authed = IsAuthenticated::new(is_closed.clone());
 
+                connection.set_max_concurrent_uni_streams(65536u32.into());
+                connection.set_max_concurrent_bi_streams(65536u32.into());
+
                 let conn = Self {
                     controller: connection,
                     udp_packet_from: UdpPacketFrom::new(),
