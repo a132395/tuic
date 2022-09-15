@@ -163,6 +163,9 @@ impl Connection {
             conn.await?
         };
 
+        connection.set_max_concurrent_bi_streams(65536u32.into());
+        connection.set_max_concurrent_uni_streams(65536u32.into());
+
         let conn = Self::new(connection, config).await;
         let uni_streams = IncomingUniStreams::new(uni_streams, conn.stream_reg.get_registry());
 
