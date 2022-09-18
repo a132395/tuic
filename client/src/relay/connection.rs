@@ -165,7 +165,6 @@ impl Connection {
             conn.await?
         };
 
-        // set infinite max concurrent bi/uni stream number
         let max_stream = config.max_concurrent_stream;
         connection.set_max_concurrent_bi_streams(max_stream);
         connection.set_max_concurrent_uni_streams(max_stream);

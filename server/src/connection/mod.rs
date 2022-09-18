@@ -60,7 +60,6 @@ impl Connection {
                 let is_closed = IsClosed::new();
                 let is_authed = IsAuthenticated::new(is_closed.clone());
 
-                // set infinite max concurrent bi/uni stream number
                 connection.set_max_concurrent_bi_streams(max_concurrent_stream);
                 connection.set_max_concurrent_uni_streams(max_concurrent_stream);
 
