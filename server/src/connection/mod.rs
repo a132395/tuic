@@ -111,6 +111,18 @@ impl Connection {
             tokio::spawn(async move {
                 match conn.process_uni_stream(stream).await {
                     Ok(()) => {}
+                    Err(DispatchError::AuthenticationFailed) => {
+                        // wait timeout wake() broadcast
+                        conn.is_authenticated.clone().await;
+                        // close connection
+                        conn.controller.close(0u32.into(), &[]);
+                        let rmt_addr = conn.controller.remote_address();
+
+                        log::error!("[{rmt_addr}] authentication failed and timeout exceeded");
+                    }
+                    Err(DispatchError::AuthenticationTimeout) => {
+                        conn.controller.close(0u32.into(), &[]);
+                    }
                     Err(err) => {
                         conn.controller
                             .close(err.as_error_code(), err.to_string().as_bytes());
@@ -207,8 +219,7 @@ impl Connection {
         } else {
             let err = DispatchError::AuthenticationTimeout;
 
-            self.controller
-                .close(err.as_error_code(), err.to_string().as_bytes());
+            self.controller.close(0u32.into(), &[]);
             self.is_authenticated.wake();
 
             let rmt_addr = self.controller.remote_address();

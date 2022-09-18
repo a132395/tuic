@@ -19,9 +19,10 @@ impl Connection {
                 return Ok(());
             } else {
                 let err = DispatchError::AuthenticationFailed;
-                self.controller
-                    .close(err.as_error_code(), err.to_string().as_bytes());
-                self.is_authenticated.wake();
+                tokio::spawn(async move {
+                    // read forever
+                    let _ = tokio::io::copy(&mut stream, &mut tokio::io::sink()).await;
+                });
                 return Err(err);
             }
         }
