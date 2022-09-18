@@ -6,7 +6,9 @@ use super::{
 };
 use bytes::Bytes;
 use parking_lot::Mutex;
-use quinn::{ClientConfig, Connection as QuinnConnection, Datagrams, Endpoint, NewConnection};
+use quinn::{
+    ClientConfig, Connection as QuinnConnection, Datagrams, Endpoint, NewConnection, VarInt,
+};
 use std::{
     collections::HashMap,
     future::Future,
@@ -162,6 +164,10 @@ impl Connection {
         } else {
             conn.await?
         };
+
+        // set infinite max concurrent bi/uni stream number
+        connection.set_max_concurrent_bi_streams(VarInt::MAX);
+        connection.set_max_concurrent_uni_streams(VarInt::MAX);
 
         let conn = Self::new(connection, config).await;
         let uni_streams = IncomingUniStreams::new(uni_streams, conn.stream_reg.get_registry());

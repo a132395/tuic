@@ -7,7 +7,7 @@ use futures_util::StreamExt;
 use parking_lot::Mutex;
 use quinn::{
     Connecting, Connection as QuinnConnection, ConnectionError, Datagrams, IncomingBiStreams,
-    IncomingUniStreams, NewConnection,
+    IncomingUniStreams, NewConnection, VarInt,
 };
 use std::{
     collections::HashSet,
@@ -58,6 +58,10 @@ impl Connection {
                 let (udp_sessions, recv_pkt_rx) = UdpSessionMap::new(max_pkt_size);
                 let is_closed = IsClosed::new();
                 let is_authed = IsAuthenticated::new(is_closed.clone());
+
+                // set infinite max concurrent bi/uni stream number
+                connection.set_max_concurrent_bi_streams(VarInt::MAX);
+                connection.set_max_concurrent_uni_streams(VarInt::MAX);
 
                 let conn = Self {
                     controller: connection,
