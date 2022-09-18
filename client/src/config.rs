@@ -6,7 +6,7 @@ use getopts::{Fail, Options};
 use log::{LevelFilter, ParseLevelError};
 use quinn::{
     congestion::{BbrConfig, CubicConfig, NewRenoConfig},
-    ClientConfig,
+    ClientConfig, VarInt,
 };
 use rustls::{version::TLS13, ClientConfig as RustlsClientConfig};
 use serde::{de::Error as DeError, Deserialize, Deserializer};
@@ -37,6 +37,7 @@ pub struct Config {
     pub reduce_rtt: bool,
     pub request_timeout: u64,
     pub max_udp_relay_packet_size: usize,
+    pub max_concurrent_stream: VarInt,
     pub local_addr: SocketAddr,
     pub socks5_auth: Arc<dyn Auth + Send + Sync>,
     pub log_level: LevelFilter,
@@ -107,6 +108,8 @@ impl Config {
         let reduce_rtt = raw.relay.reduce_rtt;
         let request_timeout = raw.relay.request_timeout;
         let max_udp_relay_packet_size = raw.relay.max_udp_relay_packet_size;
+        let max_concurrent_stream = VarInt::from_u64(raw.relay.max_concurrent_stream)
+            .map_err(|_| ConfigError::MaxConcurrentStream)?;
 
         let local_addr = SocketAddr::from((raw.local.ip, raw.local.port.unwrap()));
 
@@ -130,6 +133,7 @@ impl Config {
             reduce_rtt,
             request_timeout,
             max_udp_relay_packet_size,
+            max_concurrent_stream,
             local_addr,
             socks5_auth,
             log_level,
@@ -187,6 +191,9 @@ struct RawRelayConfig {
 
     #[serde(default = "default::max_udp_relay_packet_size")]
     max_udp_relay_packet_size: usize,
+
+    #[serde(default = "default::max_concurrent_stream")]
+    max_concurrent_stream: u64,
 }
 
 #[derive(Deserialize)]
@@ -227,6 +234,7 @@ impl Default for RawRelayConfig {
             reduce_rtt: default::reduce_rtt(),
             request_timeout: default::request_timeout(),
             max_udp_relay_packet_size: default::max_udp_relay_packet_size(),
+            max_concurrent_stream: default::max_concurrent_stream(),
         }
     }
 }
@@ -331,6 +339,13 @@ impl RawConfig {
             "max-udp-relay-packet-size",
             "UDP relay mode QUIC can transmit UDP packets larger than the MTU. Set this to a higher value allows inbound to receive larger UDP packet. Default: 1500",
             "MAX_UDP_RELAY_PACKET_SIZE",
+        );
+
+        opts.optopt(
+            "",
+            "max-concurrent-stream",
+            "Set max concurrent stream number per connection allowed. Default: 100",
+            "MAX_CONCURRENT_STREAM_NUMBER",
         );
 
         opts.optopt(
@@ -479,6 +494,10 @@ impl RawConfig {
             raw.relay.max_udp_relay_packet_size = size.parse()?;
         };
 
+        if let Some(stream_num) = matches.opt_str("max-concurrent-stream") {
+            raw.relay.max_concurrent_stream = stream_num.parse()?;
+        }
+
         if let Some(local_ip) = matches.opt_str("local-ip") {
             raw.local.ip = local_ip.parse()?;
         };
@@ -585,6 +604,10 @@ mod default {
         1500
     }
 
+    pub(super) const fn max_concurrent_stream() -> u64 {
+        100
+    }
+
     pub(super) const fn local_ip() -> IpAddr {
         IpAddr::V4(Ipv4Addr::LOCALHOST)
     }
@@ -626,4 +649,6 @@ pub enum ConfigError {
     LocalAuthentication,
     #[error(transparent)]
     ParseLogLevel(#[from] ParseLevelError),
+    #[error("Max concurrent stream number exceeds bound")]
+    MaxConcurrentStream,
 }

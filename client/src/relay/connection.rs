@@ -166,8 +166,9 @@ impl Connection {
         };
 
         // set infinite max concurrent bi/uni stream number
-        connection.set_max_concurrent_bi_streams(VarInt::MAX);
-        connection.set_max_concurrent_uni_streams(VarInt::MAX);
+        let max_stream = config.max_concurrent_stream;
+        connection.set_max_concurrent_bi_streams(max_stream);
+        connection.set_max_concurrent_uni_streams(max_stream);
 
         let conn = Self::new(connection, config).await;
         let uni_streams = IncomingUniStreams::new(uni_streams, conn.stream_reg.get_registry());
@@ -303,9 +304,11 @@ pub struct ConnectionConfig {
     heartbeat_interval: u64,
     reduce_rtt: bool,
     max_udp_relay_packet_size: usize,
+    max_concurrent_stream: VarInt,
 }
 
 impl ConnectionConfig {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         quinn_config: ClientConfig,
         server_addr: ServerAddr,
@@ -314,6 +317,7 @@ impl ConnectionConfig {
         heartbeat_interval: u64,
         reduce_rtt: bool,
         max_udp_relay_packet_size: usize,
+        max_concurrent_stream: VarInt,
     ) -> Self {
         Self {
             quinn_config,
@@ -323,6 +327,7 @@ impl ConnectionConfig {
             heartbeat_interval,
             reduce_rtt,
             max_udp_relay_packet_size,
+            max_concurrent_stream,
         }
     }
 }

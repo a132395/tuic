@@ -42,6 +42,7 @@ impl Connection {
         token: Arc<HashSet<[u8; 32]>>,
         auth_timeout: Duration,
         max_pkt_size: usize,
+        max_concurrent_stream: VarInt,
     ) {
         let rmt_addr = conn.remote_address();
 
@@ -60,8 +61,8 @@ impl Connection {
                 let is_authed = IsAuthenticated::new(is_closed.clone());
 
                 // set infinite max concurrent bi/uni stream number
-                connection.set_max_concurrent_bi_streams(VarInt::MAX);
-                connection.set_max_concurrent_uni_streams(VarInt::MAX);
+                connection.set_max_concurrent_bi_streams(max_concurrent_stream);
+                connection.set_max_concurrent_uni_streams(max_concurrent_stream);
 
                 let conn = Self {
                     controller: connection,
