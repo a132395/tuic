@@ -2,7 +2,7 @@ use crate::relay::{Address as RelayAddress, Request as RelayRequest};
 use socks5_proto::{Address, Reply};
 use socks5_server::{connection::connect::NeedReply, Connect};
 use std::io::Result;
-use tokio::{io, sync::mpsc::Sender};
+use tokio::sync::mpsc::Sender;
 
 pub async fn handle(
     conn: Connect<NeedReply>,
@@ -21,7 +21,7 @@ pub async fn handle(
 
     if let Ok(mut relay) = relay_resp_rx.await {
         let mut conn = conn.reply(Reply::Succeeded, Address::unspecified()).await?;
-        io::copy_bidirectional(&mut conn, &mut relay).await?;
+        realm_io::bidi_copy(&mut conn, &mut relay).await?;
     } else {
         let mut conn = conn
             .reply(Reply::NetworkUnreachable, Address::unspecified())

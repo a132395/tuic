@@ -367,7 +367,8 @@ impl RawConfig {
             r#"Set the log level. Available: "off", "error", "warn", "info", "debug", "trace". Default: "info""#,
             "LOG_LEVEL",
         );
-
+        #[cfg(unix)]
+        opts.optflag("d", "daemon", "Daemonize");
         opts.optflag("v", "version", "Print the version");
         opts.optflag("h", "help", "Print this help menu");
 
@@ -384,7 +385,14 @@ impl RawConfig {
         if !matches.free.is_empty() {
             return Err(ConfigError::UnexpectedArguments(matches.free.join(", ")));
         }
-
+		#[cfg(unix)]
+        if matches.opt_present("daemon") {
+            let _ = realm_syscall::bump_nofile_limit();
+            if let Ok((soft, hard)) = realm_syscall::get_nofile_limit() {
+                println!("fd limit: {soft}, {hard}")
+            }
+            realm_syscall::daemonize("tuic is running in the background.");
+        }
         let server = matches.opt_str("server");
         let server_port = matches.opt_str("server-port").map(|port| port.parse());
         let token = matches.opt_str("token");

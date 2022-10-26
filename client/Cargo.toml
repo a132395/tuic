@@ -35,3 +35,9 @@ socks5-server = "0.8.*"
 thiserror = "1.0.*"
 tokio = { version = "1.20.*", features = ["io-util", "macros", "net", "parking_lot", "rt-multi-thread", "sync", "time"] }
 webpki = { version = "0.22.*", default-features = false }
+http = "0.2"
+httparse = "1"
+realm_io = { version = "0.3.5", features = ["brutal-shutdown"] }
+[target."cfg(unix)".dependencies]
+realm_syscall = "0.1"
+jemallocator = "0.5"

@@ -30,3 +30,7 @@ serde_json = { version = "1.0.*", features = ["std"], default-features = false }
 socket2 = "0.4.*"
 thiserror = "1.0.*"
 tokio = { version = "1.20.*", features = ["io-util", "macros", "net", "parking_lot", "rt-multi-thread", "sync", "time"] }
+realm_io = { version = "0.3", features = ["brutal-shutdown"] }
+[target."cfg(unix)".dependencies]
+realm_syscall = "0.1"
+jemallocator = "0.5"

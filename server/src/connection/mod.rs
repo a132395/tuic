@@ -22,6 +22,7 @@ use std::{
 };
 use tokio::time;
 
+pub mod socks5_out;
 mod authenticate;
 mod dispatch;
 mod task;

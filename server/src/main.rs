@@ -9,8 +9,11 @@ mod config;
 mod connection;
 mod server;
 
-#[tokio::main]
-async fn main() {
+#[cfg(unix)]
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
+fn main() {
     let args = env::args_os();
 
     let config = match Config::parse(args) {
@@ -31,6 +34,15 @@ async fn main() {
         .format_target(false)
         .format_module_path(false)
         .init();
+
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(run(config))
+}
+
+async fn run(config: Config) {
 
     let server = match Server::init(
         config.server_config,

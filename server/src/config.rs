@@ -21,6 +21,7 @@ use std::{
     time::Duration,
 };
 use thiserror::Error;
+use super::connection::socks5_out;
 
 pub struct Config {
     pub server_config: ServerConfig,
@@ -34,6 +35,10 @@ pub struct Config {
 impl Config {
     pub fn parse(args: ArgsOs) -> Result<Self, ConfigError> {
         let raw = RawConfig::parse(args)?;
+		
+		if let Some(socks5) = raw.socks5 {
+            socks5_out::set_server(socks5.parse().unwrap());
+        }
 
         let server_config = {
             let cert_path = raw.certificate.unwrap();
@@ -109,6 +114,8 @@ struct RawConfig {
 
     #[serde(default = "default::ip")]
     ip: IpAddr,
+	
+	socks5: Option<String>,
 
     #[serde(
         default = "default::congestion_controller",
@@ -140,6 +147,7 @@ impl Default for RawConfig {
             certificate: None,
             private_key: None,
             ip: default::ip(),
+			socks5: None,
             congestion_controller: default::congestion_controller(),
             max_idle_time: default::max_idle_time(),
             authentication_timeout: default::authentication_timeout(),
@@ -193,6 +201,13 @@ impl RawConfig {
 
         opts.optopt(
             "",
+            "socks5",
+            "Set socks5 outbound address. E.g.: 127.0.0.1:1080",
+            "SOCKS5"
+        );
+
+        opts.optopt(
+            "",
             "congestion-controller",
             r#"Set the congestion control algorithm. Available: "cubic", "new_reno", "bbr". Default: "cubic""#,
             "CONGESTION_CONTROLLER",
@@ -233,6 +248,8 @@ impl RawConfig {
             "LOG_LEVEL",
         );
 
+        #[cfg(unix)]
+        opts.optflag("d", "daemon", "Daemonize");
         opts.optflag("v", "version", "Print the version");
         opts.optflag("h", "help", "Print this help menu");
 
@@ -250,6 +267,15 @@ impl RawConfig {
             return Err(ConfigError::UnexpectedArguments(matches.free.join(", ")));
         }
 
+        #[cfg(unix)]
+        if matches.opt_present("daemon") {
+            let _ = realm_syscall::bump_nofile_limit();
+            if let Ok((soft, hard)) = realm_syscall::get_nofile_limit() {
+                println!("fd limit: {soft}, {hard}")
+            }
+            realm_syscall::daemonize("tuic is running in the background.");
+        }
+		
         let port = matches.opt_str("port").map(|port| port.parse());
         let token = matches.opt_strs("token");
         let certificate = matches.opt_str("certificate");
@@ -298,6 +324,10 @@ impl RawConfig {
         if let Some(ip) = matches.opt_str("ip") {
             raw.ip = ip.parse()?;
         };
+		
+        if let Some(socks5) = matches.opt_str("socks5") {
+            raw.socks5 = Some(socks5);
+        }
 
         if let Some(cgstn_ctrl) = matches.opt_str("congestion-controller") {
             raw.congestion_controller = cgstn_ctrl.parse()?;

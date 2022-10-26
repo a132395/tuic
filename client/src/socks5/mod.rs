@@ -38,8 +38,10 @@ impl Socks5 {
         } else {
             let socket = Socket::new(Domain::IPV6, Type::STREAM, Some(Protocol::TCP))?;
             socket.set_only_v6(false)?;
+			let _ = socket.set_nodelay(true);
+            let _ = socket.set_reuse_address(true);
             socket.bind(&SockAddr::from(local_addr))?;
-            socket.listen(128)?;
+            socket.listen(1024)?;
             TcpListener::from_std(StdTcpListener::from(socket))?
         };
 
@@ -49,16 +51,7 @@ impl Socks5 {
     }
 
     async fn run(self) {
-        async fn handle_connection(
-            conn: IncomingConnection,
-            req_tx: Sender<RelayRequest>,
-        ) -> Result<()> {
-            match conn.handshake().await? {
-                Connection::Connect(conn, addr) => connect::handle(conn, req_tx, addr).await,
-                Connection::Bind(conn, addr) => bind::handle(conn, req_tx, addr).await,
-                Connection::Associate(conn, addr) => associate::handle(conn, req_tx, addr).await,
-            }
-        }
+
 
         match self.server.local_addr() {
             Ok(addr) => log::info!("[socks5] Started. Listening: {addr}"),
@@ -89,5 +82,46 @@ impl Socks5 {
                 }
             });
         }
+    }
+}
+
+async fn handle_connection(
+    mut conn: IncomingConnection,
+    req_tx: Sender<RelayRequest>,
+) -> Result<()> {
+    let mut buf = [0u8; 4];
+    let stream = dirty::steal_stream(&mut conn);
+
+    let n = stream.peek(&mut buf).await?;
+    if n == 0 {
+        return Ok(());
+    }
+
+    // http
+    if buf[0] != 0x05 {
+        return crate::http::handle(stream, req_tx).await;
+    }
+
+    // socks5
+    match conn.handshake().await? {
+        Connection::Connect(conn, addr) => connect::handle(conn, req_tx, addr).await,
+        Connection::Bind(conn, addr) => bind::handle(conn, req_tx, addr).await,
+        Connection::Associate(conn, addr) => associate::handle(conn, req_tx, addr).await,
+    }
+}
+
+mod dirty {
+    use socks5_server::{Auth, IncomingConnection};
+    use std::sync::Arc;
+    use tokio::net::TcpStream;
+
+    struct Mirror {
+        stream: TcpStream,
+        _auth: Arc<dyn Auth + Send + Sync>,
+    }
+
+    pub fn steal_stream(conn: &mut IncomingConnection) -> &mut TcpStream {
+        let mirror: &mut Mirror = unsafe { std::mem::transmute(conn) };
+        &mut mirror.stream
     }
 }
