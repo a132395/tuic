@@ -46,6 +46,8 @@ pub struct Config {
 impl Config {
     pub fn parse(args: ArgsOs) -> Result<Self, ConfigError> {
         let raw = RawConfig::parse(args)?;
+		
+		unsafe { crate::FAST = raw.relay.fast_connect };
 
         let client_config = {
             let certs = certificate::load_certificates(raw.relay.certificates)?;
@@ -185,6 +187,9 @@ struct RawRelayConfig {
 
     #[serde(default = "default::reduce_rtt")]
     reduce_rtt: bool,
+	
+	#[serde(default)]
+    fast_connect: bool,
 
     #[serde(default = "default::request_timeout")]
     request_timeout: u64,
@@ -232,6 +237,7 @@ impl Default for RawRelayConfig {
             alpn: default::alpn(),
             disable_sni: default::disable_sni(),
             reduce_rtt: default::reduce_rtt(),
+			fast_connect: false,
             request_timeout: default::request_timeout(),
             max_udp_relay_packet_size: default::max_udp_relay_packet_size(),
 			max_concurrent_stream: default::max_concurrent_stream(),
@@ -326,6 +332,8 @@ impl RawConfig {
         );
 
         opts.optflag("", "reduce-rtt", "Enable 0-RTT QUIC handshake");
+		
+		opts.optflag("", "fast-connect", "Enable 0-RTT connect");
 
         opts.optopt(
             "",
@@ -493,6 +501,7 @@ impl RawConfig {
 
         raw.relay.disable_sni |= matches.opt_present("disable-sni");
         raw.relay.reduce_rtt |= matches.opt_present("reduce-rtt");
+		raw.relay.fast_connect |= matches.opt_present("fast-connect");
 
         if let Some(timeout) = matches.opt_str("request-timeout") {
             raw.relay.request_timeout = timeout.parse()?;

@@ -11,6 +11,8 @@ mod socks5;
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
+static mut FAST: bool = false;
+
 fn main() {
     let args = env::args_os();
 
