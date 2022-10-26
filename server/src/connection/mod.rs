@@ -7,7 +7,7 @@ use futures_util::StreamExt;
 use parking_lot::Mutex;
 use quinn::{
     Connecting, Connection as QuinnConnection, ConnectionError, Datagrams, IncomingBiStreams,
-    IncomingUniStreams, NewConnection,
+    IncomingUniStreams, NewConnection, VarInt,
 };
 use std::{
     collections::HashSet,
@@ -43,6 +43,7 @@ impl Connection {
         token: Arc<HashSet<[u8; 32]>>,
         auth_timeout: Duration,
         max_pkt_size: usize,
+		max_concurrent_stream: VarInt,
     ) {
         let rmt_addr = conn.remote_address();
 
@@ -59,6 +60,9 @@ impl Connection {
                 let (udp_sessions, recv_pkt_rx) = UdpSessionMap::new(max_pkt_size);
                 let is_closed = IsClosed::new();
                 let is_authed = IsAuthenticated::new(is_closed.clone());
+				// set infinite max concurrent bi/uni stream number
+                connection.set_max_concurrent_bi_streams(max_concurrent_stream);
+                connection.set_max_concurrent_uni_streams(max_concurrent_stream);
 
                 let conn = Self {
                     controller: connection,
@@ -108,6 +112,18 @@ impl Connection {
             tokio::spawn(async move {
                 match conn.process_uni_stream(stream).await {
                     Ok(()) => {}
+                    Err(DispatchError::AuthenticationFailed) => {
+                        // wait timeout wake() broadcast
+                        conn.is_authenticated.clone().await;
+                        // close connection
+                        conn.controller.close(0u32.into(), &[]);
+                        let rmt_addr = conn.controller.remote_address();
+
+                        log::error!("[{rmt_addr}] authentication failed and timeout exceeded");
+                    }
+                    Err(DispatchError::AuthenticationTimeout) => {
+                        conn.controller.close(0u32.into(), &[]);
+                    }
                     Err(err) => {
                         conn.controller
                             .close(err.as_error_code(), err.to_string().as_bytes());
@@ -204,8 +220,7 @@ impl Connection {
         } else {
             let err = DispatchError::AuthenticationTimeout;
 
-            self.controller
-                .close(err.as_error_code(), err.to_string().as_bytes());
+            self.controller.close(0u32.into(), &[]);
             self.is_authenticated.wake();
 
             let rmt_addr = self.controller.remote_address();

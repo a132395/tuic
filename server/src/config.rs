@@ -29,6 +29,7 @@ pub struct Config {
     pub token: HashSet<[u8; 32]>,
     pub authentication_timeout: Duration,
     pub max_udp_relay_packet_size: usize,
+	pub max_concurrent_stream: VarInt,
     pub log_level: LevelFilter,
 }
 
@@ -91,7 +92,9 @@ impl Config {
 
         let authentication_timeout = Duration::from_secs(raw.authentication_timeout);
         let max_udp_relay_packet_size = raw.max_udp_relay_packet_size;
-        let log_level = raw.log_level;
+        let max_concurrent_stream = VarInt::from_u64(raw.max_concurrent_stream)
+            .map_err(|_| ConfigError::MaxConcurrentStream)?;
+		let log_level = raw.log_level;
 
         Ok(Self {
             server_config,
@@ -99,6 +102,7 @@ impl Config {
             token,
             authentication_timeout,
             max_udp_relay_packet_size,
+			max_concurrent_stream,
             log_level,
         })
     }
@@ -134,6 +138,9 @@ struct RawConfig {
 
     #[serde(default = "default::max_udp_relay_packet_size")]
     max_udp_relay_packet_size: usize,
+	
+	#[serde(default = "default::max_concurrent_stream")]
+    max_concurrent_stream: u64,
 
     #[serde(default = "default::log_level")]
     log_level: LevelFilter,
@@ -153,7 +160,8 @@ impl Default for RawConfig {
             authentication_timeout: default::authentication_timeout(),
             alpn: default::alpn(),
             max_udp_relay_packet_size: default::max_udp_relay_packet_size(),
-            log_level: default::log_level(),
+            max_concurrent_stream: default::max_concurrent_stream(),
+			log_level: default::log_level(),
         }
     }
 }
@@ -239,6 +247,13 @@ impl RawConfig {
             "max-udp-relay-packet-size",
             "UDP relay mode QUIC can transmit UDP packets larger than the MTU. Set this to a higher value allows outbound to receive larger UDP packet. Default: 1500",
             "MAX_UDP_RELAY_PACKET_SIZE",
+        );
+		
+		opts.optopt(
+            "",
+            "max-concurrent-stream",
+            "Set max concurrent stream number per connection allowed. Default: 100",
+            "MAX_CONCURRENT_STREAM_NUMBER",
         );
 
         opts.optopt(
@@ -344,6 +359,10 @@ impl RawConfig {
         if let Some(size) = matches.opt_str("max-udp-relay-packet-size") {
             raw.max_udp_relay_packet_size = size.parse()?;
         };
+		
+		if let Some(stream_num) = matches.opt_str("max-concurrent-stream") {
+            raw.max_concurrent_stream = stream_num.parse()?;
+        }
 
         let alpn = matches.opt_strs("alpn");
 
@@ -423,6 +442,10 @@ mod default {
     pub(super) const fn max_udp_relay_packet_size() -> usize {
         1500
     }
+	
+	pub(super) const fn max_concurrent_stream() -> u64 {
+        100
+    }
 
     pub(super) const fn log_level() -> LevelFilter {
         LevelFilter::Info
@@ -455,4 +478,6 @@ pub enum ConfigError {
     ParseLogLevel(#[from] ParseLevelError),
     #[error("Failed to load certificate / private key: {0}")]
     Rustls(#[from] RustlsError),
+	#[error("Max concurrent stream number exceeds bound")]
+    MaxConcurrentStream,
 }

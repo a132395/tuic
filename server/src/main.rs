@@ -50,6 +50,7 @@ async fn run(config: Config) {
         config.token,
         config.authentication_timeout,
         config.max_udp_relay_packet_size,
+		config.max_concurrent_stream,
     ) {
         Ok(server) => server,
         Err(err) => {
