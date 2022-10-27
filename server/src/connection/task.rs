@@ -16,7 +16,7 @@ use thiserror::Error;
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::{self, TcpStream},
-	sync::mpsc::{self, Receiver, Sender},
+    sync::mpsc::{self, Receiver, Sender},
 };
 use tuic_protocol::{Address, Command};
 use super::socks5_out;
