@@ -5,17 +5,17 @@ use quinn::{
     Connection as QuinnConnection, ConnectionError, ReadExactError, RecvStream, SendDatagramError,
     SendStream, WriteError,
 };
+use std::io;
+use std::net;
 use std::{
-    io::,
-    net::,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
     time::Duration,
 };
 use thiserror::Error;
+use tokio::io;
 use tokio::{
-    io::,
     net::{self, TcpStream},
     sync::mpsc::{self, Receiver, Sender},
     prelude::,
