@@ -38,7 +38,7 @@ pub async fn connect(
         }?;
 
     let total = addrs.len();
-	let (tx, mut rx): (
+    let (tx, mut rx): (
         Sender<io::Result<TcpStream>>,
         Receiver<io::Result<TcpStream>>,
     ) = mpsc::channel(total);
@@ -73,7 +73,6 @@ pub async fn connect(
             if let Ok(conn) = ret {
                 target = Some(conn);
                 break;
-            }
             }
         }
     } else {
