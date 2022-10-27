@@ -105,7 +105,7 @@ async fn tcp_connect(addrs: Vec<SocketAddr>) -> std::io::Result<TcpStream> {
         "all add connect failed",
     ));
     for addr in addrs {
-        let ret = std::net::TcpStream::connect(addr).await;
+        let ret = TcpStream::connect(addr).await;
         if ret.is_ok() {
             return ret;
         } else {
