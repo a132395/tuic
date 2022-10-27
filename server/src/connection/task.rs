@@ -5,18 +5,18 @@ use quinn::{
     Connection as QuinnConnection, ConnectionError, ReadExactError, RecvStream, SendDatagramError,
     SendStream, WriteError,
 };
-use std::io;
-use std::net;
 use std::{
+    io::{Error as IoError, IoSlice, prelude, IoResult},
+    net::{Ipv4Addr,SocketAddr,SocketAddrV4,TcpStream},
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
     time::Duration,
 };
 use thiserror::Error;
-use tokio::io;
 use tokio::prelude;
 use tokio::{
+    io::{AsyncRead, AsyncWrite, ReadBuf},
     net::{self, TcpStream},
     sync::mpsc::{self, Receiver, Sender},
 };
