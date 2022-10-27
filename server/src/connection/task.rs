@@ -5,18 +5,22 @@ use quinn::{
     Connection as QuinnConnection, ConnectionError, ReadExactError, RecvStream, SendDatagramError,
     SendStream, WriteError,
 };
+use std::io;
+use std::error;
 use std::{
     io::{Error as IoError, IoSlice},
-    net::SocketAddr,
+    net::{Ipv4Addr,SocketAddr,SocketAddrV4,TcpStream}
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
+    time::Duration,
 };
 use thiserror::Error;
 use tokio::{
-    io::{AsyncRead, AsyncWrite, ReadBuf},
+    io::,
     net::{self, TcpStream},
     sync::mpsc::{self, Receiver, Sender},
+    prelude::,
 };
 use tuic_protocol::{Address, Command};
 use super::socks5_out;
@@ -37,44 +41,45 @@ pub async fn connect(
                 .map(|res| res.collect()),
         }?;
 
-    let total = addrs.len();
-    let (tx, mut rx): (
-        Sender<io::Result<TcpStream>>,
-        Receiver<io::Result<TcpStream>>,
-    ) = mpsc::channel(total);
-    let mut ipv4_addrs = vec![];
-    let mut ipv6_addrs = vec![];
-    for addr in addrs.into_iter() {
-        if addr.ip().is_ipv4() {
-            ipv4_addrs.push(addr);
-        } else {
-            ipv6_addrs.push(addr);
-        }
-    }
-
-    let arc_tx = Arc::new(tx);
-    let ipv6_tx = Arc::clone(&arc_tx);
-    if ipv6_addrs.len() > 0 {
-        tokio::spawn(async move {
-            ipv6_tx.send(tcp_connect(ipv6_addrs).await).await;
-        });
-    }
-
-    let ipv4_tx = Arc::clone(&arc_tx);
-
-    if ipv4_addrs.len() > 0 {
-        tokio::spawn(async move {
-            ipv4_tx.send(tcp_connect(ipv4_addrs).await).await;
-        });
-    }
-
-    for _ in 0..total {
-        if let Some(ret) = rx.recv().await {
-            if let Ok(conn) = ret {
-                target = Some(conn);
-                break;
+        let total = addrs.len();
+        let (tx, mut rx): (
+            Sender<io::Result<TcpStream>>,
+            Receiver<io::Result<TcpStream>>,
+            ) = mpsc::channel(total);
+        let mut ipv4_addrs = vec![];
+        let mut ipv6_addrs = vec![];
+        for addr in addrs.into_iter() {
+            if addr.ip().is_ipv4() {
+                ipv4_addrs.push(addr);
+            } else {
+                ipv6_addrs.push(addr);
             }
         }
+
+        let arc_tx = Arc::new(tx);
+        let ipv6_tx = Arc::clone(&arc_tx);
+        if ipv6_addrs.len() > 0 {
+            tokio::spawn(async move {
+                ipv6_tx.send(tcp_connect(ipv6_addrs).await).await;
+            });
+        }
+
+        let ipv4_tx = Arc::clone(&arc_tx);
+
+        if ipv4_addrs.len() > 0 {
+            tokio::spawn(async move {
+                ipv4_tx.send(tcp_connect(ipv4_addrs).await).await;
+            });
+        }
+
+        for _ in 0..total {
+            if let Some(ret) = rx.recv().await {
+                if let Ok(conn) = ret {
+                    target = Some(conn);
+                    break;
+                }
+            }
+	}
     } else {
         target = socks5_out::connect(addr).await.ok();
     }
