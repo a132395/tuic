@@ -5,11 +5,9 @@ use quinn::{
     Connection as QuinnConnection, ConnectionError, ReadExactError, RecvStream, SendDatagramError,
     SendStream, WriteError,
 };
-use std::io;
-use std::error;
 use std::{
-    io::{Error as IoError, IoSlice},
-    net::{Ipv4Addr,SocketAddr,SocketAddrV4,TcpStream}
+    io::,
+    net::,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
