@@ -37,8 +37,8 @@ pub async fn connect(
                 .map(|res| res.collect()),
         }?;
 
-        let total = addrs.len();
-    let (tx, mut rx): (
+    let total = addrs.len();
+	let (tx, mut rx): (
         Sender<io::Result<TcpStream>>,
         Receiver<io::Result<TcpStream>>,
     ) = mpsc::channel(total);
