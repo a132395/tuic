@@ -15,10 +15,10 @@ use std::{
 };
 use thiserror::Error;
 use tokio::io;
+use tokio::prelude;
 use tokio::{
     net::{self, TcpStream},
     sync::mpsc::{self, Receiver, Sender},
-    prelude::,
 };
 use tuic_protocol::{Address, Command};
 use super::socks5_out;
