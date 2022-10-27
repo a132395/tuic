@@ -6,7 +6,7 @@ use quinn::{
     SendStream, WriteError,
 };
 use std::{
-    io::{Error as IoError, IoSlice, prelude, Result},
+    io::{Error as IoError, IoSlice, prelude},
     net::{Ipv4Addr,SocketAddr,SocketAddrV4},
     pin::Pin,
     sync::Arc,
