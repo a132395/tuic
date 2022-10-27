@@ -29,7 +29,7 @@ pub enum Command {
     },
     Connect {
         addr: Address,
-		fast: bool,
+        fast: bool,
     },
     Packet {
         assoc_id: u32,
@@ -46,7 +46,7 @@ impl Command {
     const TYPE_RESPONSE: u8 = 0xff;
     const TYPE_AUTHENTICATE: u8 = 0x00;
     const TYPE_CONNECT: u8 = 0x01;
-	const TYPE_FAST_CONNECT: u8 = 0xf1;
+    const TYPE_FAST_CONNECT: u8 = 0xf1;
     const TYPE_PACKET: u8 = 0x02;
     const TYPE_DISSOCIATE: u8 = 0x03;
     const TYPE_HEARTBEAT: u8 = 0x04;
@@ -64,6 +64,7 @@ impl Command {
 
     pub fn new_connect(addr: Address, fast: bool) -> Self {
         Self::Connect { addr, fast }
+    }
 
     pub fn new_packet(assoc_id: u32, len: u16, addr: Address) -> Self {
         Self::Packet {
