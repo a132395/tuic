@@ -56,7 +56,7 @@ pub async fn connect(
         let arc_tx = Arc::new(tx);
         let ipv6_tx = Arc::clone(&arc_tx);
         if ipv6_addrs.len() > 0 {
-            std::tokio::spawn(async move {
+                tokio::spawn(async move {
                 ipv6_tx.send(tcp_connect(ipv6_addrs).await).await;
             });
         }
@@ -64,7 +64,7 @@ pub async fn connect(
         let ipv4_tx = Arc::clone(&arc_tx);
 
         if ipv4_addrs.len() > 0 {
-            std::tokio::spawn(async move {
+                tokio::spawn(async move {
                 ipv4_tx.send(tcp_connect(ipv4_addrs).await).await;
             });
         }
