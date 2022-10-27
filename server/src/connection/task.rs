@@ -1,5 +1,6 @@
 use super::udp::UdpSessionMap;
 use bytes::{Bytes, BytesMut};
+use core::arch;
 use quinn::{
     Connection as QuinnConnection, ConnectionError, ReadExactError, RecvStream, SendDatagramError,
     SendStream, WriteError,
@@ -15,6 +16,7 @@ use thiserror::Error;
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::{self, TcpStream},
+	sync::mpsc::{self, Receiver, Sender},
 };
 use tuic_protocol::{Address, Command};
 use super::socks5_out;
@@ -35,11 +37,43 @@ pub async fn connect(
                 .map(|res| res.collect()),
         }?;
 
-        for addr in addrs {
-            if let Ok(target_stream) = TcpStream::connect(addr).await {
-                let _ = target_stream.set_nodelay(true);
-                target = Some(target_stream);
+        let total = addrs.len();
+    let (tx, mut rx): (
+        Sender<io::Result<TcpStream>>,
+        Receiver<io::Result<TcpStream>>,
+    ) = mpsc::channel(total);
+    let mut ipv4_addrs = vec![];
+    let mut ipv6_addrs = vec![];
+    for addr in addrs.into_iter() {
+        if addr.ip().is_ipv4() {
+            ipv4_addrs.push(addr);
+        } else {
+            ipv6_addrs.push(addr);
+        }
+    }
+
+    let arc_tx = Arc::new(tx);
+    let ipv6_tx = Arc::clone(&arc_tx);
+    if ipv6_addrs.len() > 0 {
+        tokio::spawn(async move {
+            ipv6_tx.send(tcp_connect(ipv6_addrs).await).await;
+        });
+    }
+
+    let ipv4_tx = Arc::clone(&arc_tx);
+
+    if ipv4_addrs.len() > 0 {
+        tokio::spawn(async move {
+            ipv4_tx.send(tcp_connect(ipv4_addrs).await).await;
+        });
+    }
+
+    for _ in 0..total {
+        if let Some(ret) = rx.recv().await {
+            if let Ok(conn) = ret {
+                target = Some(conn);
                 break;
+            }
             }
         }
     } else {
@@ -62,6 +96,22 @@ pub async fn connect(
     };
 
     Ok(())
+}
+
+async fn tcp_connect(addrs: Vec<SocketAddr>) -> io::Result<TcpStream> {
+    let mut e = Err(io::Error::new(
+        io::ErrorKind::NotConnected,
+        "all add connect failed",
+    ));
+    for addr in addrs {
+        let ret = TcpStream::connect(addr).await;
+        if ret.is_ok() {
+            return ret;
+        } else {
+            e = ret;
+        }
+    }
+    return e;
 }
 
 pub async fn packet_from_uni_stream(
