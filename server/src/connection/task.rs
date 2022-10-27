@@ -6,8 +6,8 @@ use quinn::{
     SendStream, WriteError,
 };
 use std::{
-    io::{Error as IoError, IoSlice, prelude, IoResult},
-    net::{Ipv4Addr,SocketAddr,SocketAddrV4,TcpStream},
+    io::{Error as IoError, IoSlice, prelude, Result},
+    net::{Ipv4Addr,SocketAddr,SocketAddrV4},
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
