@@ -14,7 +14,6 @@ use std::{
     time::Duration,
 };
 use thiserror::Error;
-use tokio::prelude;
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::{self, TcpStream},
@@ -41,8 +40,8 @@ pub async fn connect(
 
         let total = addrs.len();
         let (tx, mut rx): (
-            Sender<io::Result<TcpStream>>,
-            Receiver<io::Result<TcpStream>>,
+            Sender<std::io::Result<TcpStream>>,
+            Receiver<std::io::Result<TcpStream>>,
             ) = mpsc::channel(total);
         let mut ipv4_addrs = vec![];
         let mut ipv6_addrs = vec![];
@@ -57,7 +56,7 @@ pub async fn connect(
         let arc_tx = Arc::new(tx);
         let ipv6_tx = Arc::clone(&arc_tx);
         if ipv6_addrs.len() > 0 {
-            tokio::spawn(async move {
+            std::tokio::spawn(async move {
                 ipv6_tx.send(tcp_connect(ipv6_addrs).await).await;
             });
         }
@@ -65,7 +64,7 @@ pub async fn connect(
         let ipv4_tx = Arc::clone(&arc_tx);
 
         if ipv4_addrs.len() > 0 {
-            tokio::spawn(async move {
+            std::tokio::spawn(async move {
                 ipv4_tx.send(tcp_connect(ipv4_addrs).await).await;
             });
         }
@@ -100,13 +99,13 @@ pub async fn connect(
     Ok(())
 }
 
-async fn tcp_connect(addrs: Vec<SocketAddr>) -> io::Result<TcpStream> {
-    let mut e = Err(io::Error::new(
-        io::ErrorKind::NotConnected,
+async fn tcp_connect(addrs: Vec<SocketAddr>) -> std::io::Result<TcpStream> {
+    let mut e = Err(std::io::Error::new(
+        std::io::ErrorKind::NotConnected,
         "all add connect failed",
     ));
     for addr in addrs {
-        let ret = TcpStream::connect(addr).await;
+        let ret = std::net::TcpStream::connect(addr).await;
         if ret.is_ok() {
             return ret;
         } else {
